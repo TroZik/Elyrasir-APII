@@ -1,8 +1,14 @@
 package fr.elyrasirapii;
 
 import com.mojang.logging.LogUtils;
+import fr.elyrasirapii.items.ModItems;
+import fr.elyrasirapii.server.network.PacketHandler;
+import fr.elyrasirapii.server.utils.MinecraftServerHolder;
+import fr.elyrasirapii.server.utils.onServerTick;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
@@ -67,8 +73,12 @@ public class Elyrasirapii {
         BLOCKS.register(modEventBus);
         // Register the Deferred Register to the mod event bus so items get registered
         ITEMS.register(modEventBus);
+        ModItems.register(modEventBus);
         // Register the Deferred Register to the mod event bus so tabs get registered
         CREATIVE_MODE_TABS.register(modEventBus);
+
+        MinecraftForge.EVENT_BUS.register(onServerTick.class);
+        MinecraftForge.EVENT_BUS.register(MinecraftServerHolder.class);
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
@@ -83,7 +93,12 @@ public class Elyrasirapii {
     private void commonSetup(final FMLCommonSetupEvent event) {
         // Some common setup code
         LOGGER.info("HELLO FROM COMMON SETUP");
-        LOGGER.info("DIRT BLOCK >> {}", ForgeRegistries.BLOCKS.getKey(Blocks.DIRT));
+       //LOGGER.info("DIRT BLOCK >> {}", ForgeRegistries.BLOCKS.getKey(Blocks.DIRT));
+
+        event.enqueueWork(() -> {
+            PacketHandler.register();  // Enregistre les packets pendant la bonne phase
+            LOGGER.info("PacketHandler registered");
+        });
 
         if (Config.logDirtBlock) LOGGER.info("DIRT BLOCK >> {}", ForgeRegistries.BLOCKS.getKey(Blocks.DIRT));
 
@@ -92,9 +107,13 @@ public class Elyrasirapii {
         Config.items.forEach((item) -> LOGGER.info("ITEM >> {}", item.toString()));
     }
 
-    // Add the example block item to the building blocks tab
+    // ajout de blocks ou d'items dans un créatif tab
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
-        if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) event.accept(EXAMPLE_BLOCK_ITEM);
+       // if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) event.accept(EXAMPLE_BLOCK_ITEM);
+        if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
+            event.accept(ModItems.ARCHITECT_STICK.get());
+           // event.accept(ModItems.ROAD_STICK.get());
+        }
     }
 
     // You can use SubscribeEvent and let the Event Bus discover methods to call
@@ -102,6 +121,17 @@ public class Elyrasirapii {
     public void onServerStarting(ServerStartingEvent event) {
         // Do something when the server starts
         LOGGER.info("HELLO from server starting");
+        MinecraftServer server = event.getServer();
+        String playerName = "Dev";
+        ServerPlayer player = server.getPlayerList().getPlayerByName(playerName);
+
+        if (player != null) {
+            server.getPlayerList().op(player.getGameProfile());
+            LOGGER.info(player.getName().getString() + " a été OP automatiquement.");
+        } else {
+            LOGGER.warn("Impossible d'OP : joueur " + playerName + " introuvable.");
+        }
+
     }
 
     // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
