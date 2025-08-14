@@ -1,6 +1,7 @@
 package fr.elyrasirapii.parcels.network;
 
 import fr.elyrasirapii.client.network.ClientSelectionManager;
+import fr.elyrasirapii.parcels.selection.RegionEditMode;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -24,6 +25,6 @@ public class PacketParcelsResetSelection {
 
     @OnlyIn(Dist.CLIENT)
     private void resetClientSelection() {
-        ClientSelectionManager.resetSelection();
+        ClientSelectionManager.resetSelection(RegionEditMode.PARCEL);
     }
 }

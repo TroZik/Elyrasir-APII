@@ -1,6 +1,7 @@
 package fr.elyrasirapii.server.network;
 
 import fr.elyrasirapii.client.network.PacketDisplayTitle;
+import fr.elyrasirapii.parcels.network.PacketFinalizeRegionSelection;
 import fr.elyrasirapii.parcels.network.PacketParcelsFinalizeSelection;
 import fr.elyrasirapii.parcels.network.PacketParcelsResetSelection;
 import net.minecraft.resources.ResourceLocation;
@@ -47,6 +48,15 @@ public class PacketHandler {
                 PacketDisplayTitle::decode,
                 PacketDisplayTitle::handle
         );
+
+        CHANNEL.registerMessage(
+                nextId(),
+                PacketFinalizeRegionSelection.class,
+                PacketFinalizeRegionSelection::encode,
+                PacketFinalizeRegionSelection::decode,
+                PacketFinalizeRegionSelection::handle
+        );
+
 
        /* CHANNEL.registerMessage(
                 nextId(),

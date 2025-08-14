@@ -167,6 +167,144 @@ public class PolygonUtils {
     }
 
 
+    /** Retourne vrai si chaque sommet de inner est à l'intérieur (ou sur le bord) de outer. */
+    public static boolean containsPolygonAllowTouch(java.util.List<net.minecraft.core.BlockPos> outer,
+                                                    java.util.List<net.minecraft.core.BlockPos> inner) {
+        for (net.minecraft.core.BlockPos p : inner) {
+            if (!isPointInsidePolygon(p.getX(), p.getZ(), outer)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Retourne vrai s'il existe un recouvrement avec surface non nulle.
+     *  - segments qui se croisent hors extrémités => overlap
+     *  - un sommet strictement à l'intérieur de l'autre => overlap
+     *  Le simple contact bord-à-bord (extrémités ou colinéaire sans aire) n'est pas considéré comme overlap.
+     */
+    public static boolean polygonsOverlapStrict(java.util.List<net.minecraft.core.BlockPos> A,
+                                                java.util.List<net.minecraft.core.BlockPos> B) {
+        // 1) intersections de segments
+        for (int i = 0; i < A.size(); i++) {
+            var a1 = A.get(i);
+            var a2 = A.get((i + 1) % A.size());
+            for (int j = 0; j < B.size(); j++) {
+                var b1 = B.get(j);
+                var b2 = B.get((j + 1) % B.size());
+
+                if (segmentsProperlyIntersect2D(a1, a2, b1, b2)) return true;
+            }
+        }
+        // 2) sommet strictement à l'intérieur
+        if (pointStrictlyInside(A, B.get(0)) || pointStrictlyInside(B, A.get(0))) return true;
+
+        return false;
+    }
+
+    // Intersections strictes : croisement hors extrémités (pas juste toucher)
+    private static boolean segmentsProperlyIntersect2D(net.minecraft.core.BlockPos a1, net.minecraft.core.BlockPos a2,
+                                                       net.minecraft.core.BlockPos b1, net.minecraft.core.BlockPos b2) {
+        // On réutilise l'orientation ccw et on exclut les cas colinéaires ou endpoints partagés
+        int x1=a1.getX(), z1=a1.getZ(), x2=a2.getX(), z2=a2.getZ();
+        int x3=b1.getX(), z3=b1.getZ(), x4=b2.getX(), z4=b2.getZ();
+
+        long d1 = (long)(x4 - x3) * (z1 - z3) - (long)(z4 - z3) * (x1 - x3);
+        long d2 = (long)(x4 - x3) * (z2 - z3) - (long)(z4 - z3) * (x2 - x3);
+        long d3 = (long)(x2 - x1) * (z3 - z1) - (long)(z2 - z1) * (x3 - x1);
+        long d4 = (long)(x2 - x1) * (z4 - z1) - (long)(z2 - z1) * (x4 - x1);
+
+        if (d1 == 0 || d2 == 0 || d3 == 0 || d4 == 0) {
+            // au moins colinéaire/tangent → pas "proper"
+            return false;
+        }
+        return (d1 > 0) != (d2 > 0) && (d3 > 0) != (d4 > 0);
+    }
+
+    private static boolean pointStrictlyInside(java.util.List<net.minecraft.core.BlockPos> poly,
+                                               net.minecraft.core.BlockPos p) {
+        // Sur le bord => false ici (strict). Ta isPointInsidePolygon retourne true pour bord,
+        // donc on la re-teste et on exclude les cas "sur bord".
+        if (!isPointInsidePolygon(p.getX(), p.getZ(), poly)) return false;
+
+        // Test "sur bord" rapide : vérifier si p est colinéaire avec au moins une arête et dans ses bornes.
+        for (int i = 0; i < poly.size(); i++) {
+            var a = poly.get(i);
+            var b = poly.get((i + 1) % poly.size());
+            if (pointOnSegment2D(p, a, b)) return false; // sur bord → pas "strict"
+        }
+        return true;
+    }
+
+    private static boolean pointOnSegment2D(net.minecraft.core.BlockPos p,
+                                            net.minecraft.core.BlockPos a,
+                                            net.minecraft.core.BlockPos b) {
+        int px=p.getX(), pz=p.getZ(), ax=a.getX(), az=a.getZ(), bx=b.getX(), bz=b.getZ();
+        long cross = (long)(px - ax) * (bz - az) - (long)(pz - az) * (bx - ax);
+        if (cross != 0) return false;
+        return Math.min(ax, bx) <= px && px <= Math.max(ax, bx)
+                && Math.min(az, bz) <= pz && pz <= Math.max(az, bz);
+    }
+
+
+    // --- Chevauchement entre deux polygones en XZ ---
+    public static boolean polygonsOverlapXZ(java.util.List<net.minecraft.core.BlockPos> polyA,
+                                            java.util.List<net.minecraft.core.BlockPos> polyB) {
+        if (polyA.size() < 3 || polyB.size() < 3) return false;
+
+        // 1) Test intersections d'arêtes
+        for (int i = 0; i < polyA.size(); i++) {
+            net.minecraft.core.BlockPos a1 = polyA.get(i);
+            net.minecraft.core.BlockPos a2 = polyA.get((i + 1) % polyA.size());
+            for (int j = 0; j < polyB.size(); j++) {
+                net.minecraft.core.BlockPos b1 = polyB.get(j);
+                net.minecraft.core.BlockPos b2 = polyB.get((j + 1) % polyB.size());
+                if (segmentsIntersect2D(a1, a2, b1, b2)) {
+                    return true;
+                }
+            }
+        }
+
+        // 2) Si pas d’intersection : A contient un point de B, ou B contient un point de A
+        net.minecraft.core.BlockPos b0 = polyB.get(0);
+        if (isPointInsidePolygon(b0.getX(), b0.getZ(), polyA)) return true;
+
+        net.minecraft.core.BlockPos a0 = polyA.get(0);
+        return isPointInsidePolygon(a0.getX(), a0.getZ(), polyB);
+    }
+
+    private static boolean segmentsIntersect2D(net.minecraft.core.BlockPos a, net.minecraft.core.BlockPos b,
+                                               net.minecraft.core.BlockPos c, net.minecraft.core.BlockPos d) {
+        return linesIntersect(a.getX(), a.getZ(), b.getX(), b.getZ(),
+                c.getX(), c.getZ(), d.getX(), d.getZ());
+    }
+
+    private static boolean linesIntersect(int x1, int y1, int x2, int y2,
+                                          int x3, int y3, int x4, int y4) {
+        int d1 = direction(x3, y3, x4, y4, x1, y1);
+        int d2 = direction(x3, y3, x4, y4, x2, y2);
+        int d3 = direction(x1, y1, x2, y2, x3, y3);
+        int d4 = direction(x1, y1, x2, y2, x4, y4);
+
+        if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+                ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+            return true;
+        }
+
+        return (d1 == 0 && onSegment(x3, y3, x4, y4, x1, y1)) ||
+                (d2 == 0 && onSegment(x3, y3, x4, y4, x2, y2)) ||
+                (d3 == 0 && onSegment(x1, y1, x2, y2, x3, y3)) ||
+                (d4 == 0 && onSegment(x1, y1, x2, y2, x4, y4));
+    }
+
+    private static int direction(int xi, int yi, int xj, int yj, int xk, int yk) {
+        return (xk - xi) * (yj - yi) - (xj - xi) * (yk - yi);
+    }
+
+    private static boolean onSegment(int xi, int yi, int xj, int yj, int xk, int yk) {
+        return Math.min(xi, xj) <= xk && xk <= Math.max(xi, xj) &&
+                Math.min(yi, yj) <= yk && yk <= Math.max(yi, yj);
+    }
 
 
 

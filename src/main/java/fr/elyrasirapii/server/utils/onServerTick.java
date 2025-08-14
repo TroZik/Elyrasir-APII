@@ -18,37 +18,39 @@ public class onServerTick {
 
 
     @SubscribeEvent
-
-
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
-
-        // System.out.println("[DEBUG] Tick exécuté pour : " + event.player.getName().getString());
-
         if (event.phase != TickEvent.Phase.END || event.player.level().isClientSide) return;
 
         Player player = event.player;
         BlockPos pos = player.blockPosition();
-
-        String currentParcel = ParcelsManager.get().getParcelAt(pos); // null si rien
         UUID uuid = player.getUUID();
-        String lastParcel = ParcelsManager.get().getPlayerParcelMap().get(uuid);
 
+        String currentParcel = ParcelsManager.get().getParcelAt(pos);   // peut contenir "@fichier"
+        String lastParcel    = ParcelsManager.get().getPlayerParcelMap().get(uuid);
+
+        // On normalise juste pour l’AFFICHAGE (nom sans l’@...).
+        String currDisplay = displayOnlyName(currentParcel);
+        String lastDisplay = displayOnlyName(lastParcel);
 
         if (!Objects.equals(currentParcel, lastParcel)) {
-            //System.out.println("[DEBUG] Changement détecté : " + lastParcel + " -> " + currentParcel);
             if (lastParcel != null) {
-                // Sortie
-                PacketHandler.sendToClient((ServerPlayer) player, new PacketDisplayTitle("Vous quittez : " + lastParcel));
+                PacketHandler.sendToClient((ServerPlayer) player,
+                        new PacketDisplayTitle("Vous quittez : " + lastDisplay));
             }
             if (currentParcel != null) {
-                // Entrée
-                PacketHandler.sendToClient((ServerPlayer) player, new PacketDisplayTitle("Vous entrez : " + currentParcel));
+                PacketHandler.sendToClient((ServerPlayer) player,
+                        new PacketDisplayTitle("Vous entrez : " + currDisplay));
             }
-
-            ParcelsManager.get().getPlayerParcelMap().put(uuid, currentParcel);// maj
+            // On stocke l’identifiant complet pour la logique interne
+            ParcelsManager.get().getPlayerParcelMap().put(uuid, currentParcel);
         }
     }
 
+    private static String displayOnlyName(String raw) {
+        if (raw == null) return null;
+        int at = raw.indexOf('@');
+        return at >= 0 ? raw.substring(0, at) : raw;
+    }
 
 
 

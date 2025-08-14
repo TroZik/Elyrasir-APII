@@ -1,125 +1,172 @@
 package fr.elyrasirapii.client.network;
 
 import fr.elyrasirapii.client.render.DigitParticleRenderer;
+import fr.elyrasirapii.parcels.selection.RegionEditMode;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import fr.elyrasirapii.parcels.selection.ArchitectModeManager;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
 
 public class ClientSelectionManager {
 
-    private static int frameCounter = 1;
-    private static int selectedIndex = 1;
+    private static final EnumMap<RegionEditMode, List<BlockPos>> SELECTIONS =
+            new EnumMap<>(RegionEditMode.class);
+    private static final EnumMap<RegionEditMode, Integer> SELECTED_INDEX =
+            new EnumMap<>(RegionEditMode.class);
 
+    private static int frameCounter = 0;
 
-    private static final List<BlockPos> selectedPoints = new ArrayList<>();
+    static {
+        for (RegionEditMode mode : RegionEditMode.values()) {
+            SELECTIONS.put(mode, new ArrayList<>());
+            SELECTED_INDEX.put(mode, 1); // on commence à 1, comme demandé
+        }
+    }
+
+    /* ========== Helpers internes ========== */
+
+    private static List<BlockPos> currentList() {
+        return SELECTIONS.get(ArchitectModeManager.getMode());
+    }
+
+    private static int getIndex() {
+        return SELECTED_INDEX.getOrDefault(ArchitectModeManager.getMode(), 1);
+    }
+
+    private static void setIndex(int idx) {
+        RegionEditMode m = ArchitectModeManager.getMode();
+        int max = currentList().size() + 1;
+        SELECTED_INDEX.put(m, Math.max(1, Math.min(idx, max)));
+    }
+
+    /* ========== API publique (inchangée côté appelants) ========== */
 
     public static void addPoint(BlockPos pos) {
-        if (selectedPoints.size() < 16) { // Limite à 16 points
-            selectedPoints.add(pos);
+        List<BlockPos> list = currentList();
+        if (list.size() >= 1024) return; // garde-fou générique ; les limites par mode viendront ailleurs
+        list.add(pos);
 
-            // Affichage du chiffre en particules
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.level != null && mc.player != null) {
-                int index = selectedPoints.size() - 1;
-                DigitParticleRenderer.renderDigit(mc.level, pos, index);
-            }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level != null) {
+            DigitParticleRenderer.renderDigit(mc.level, pos.above(), list.size() - 1);
+        }
+    }
+
+    public static void addOrReplacePoint(BlockPos pos) {
+        List<BlockPos> list = currentList();
+        int idx = getIndex();
+
+        if (idx > 0 && idx <= list.size()) {
+            list.set(idx - 1, pos);
+        } else {
+            list.add(pos);
+            setIndex(list.size());
+        }
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level != null) {
+            int renderIdx = (idx > 0 && idx <= list.size()) ? (idx - 1) : (list.size() - 1);
+            DigitParticleRenderer.renderDigit(mc.level, pos.above(), renderIdx);
         }
     }
 
     public static List<BlockPos> getFullSelection() {
-        return Collections.unmodifiableList(selectedPoints);
-    }
-
-    public static void clear() {
-        selectedPoints.clear();
+        return Collections.unmodifiableList(currentList());
     }
 
     public static int size() {
-        return selectedPoints.size();
+        return currentList().size();
+    }
+
+    public static void clear() {
+        currentList().clear();
+        setIndex(1);
+    }
+
+    public static void resetSelection() {
+        // réinitialise uniquement le mode courant
+        RegionEditMode m = ArchitectModeManager.getMode(); // (tu as renommé getCurrentMode -> getMode)
+        SELECTIONS.get(m).clear();
+        SELECTED_INDEX.put(m, 1);
+    }
+
+    public static void resetSelection(RegionEditMode mode) {
+        if (mode == null) return;
+        SELECTIONS.get(mode).clear();
+        SELECTED_INDEX.put(mode, 1);
+    }
+
+    public static void resetAllSelections() {
+        for (RegionEditMode m : RegionEditMode.values()) {
+            SELECTIONS.get(m).clear();
+            SELECTED_INDEX.put(m, 1);
+        }
     }
 
     public static boolean isComplete() {
-        return selectedPoints.size() >= 3; // Exemple : on considère 3+ points = prêt à valider
+        return currentList().size() >= 3;
     }
 
-
-
-    public static void tick() {
-        Minecraft mc = Minecraft.getInstance();
-
-        if (mc.level != null && mc.player != null && !selectedPoints.isEmpty()) {
-            frameCounter++;
-            if (frameCounter % 10 != 0) return; // ≈ toutes les 10 ticks
-
-            for (int i = 0; i < selectedPoints.size(); i++) {
-                BlockPos pos = selectedPoints.get(i);
-                DigitParticleRenderer.renderDigit(mc.level, pos.above(), i);
-            }
+    public static void removeLastPoint() {
+        List<BlockPos> list = currentList();
+        if (!list.isEmpty()) {
+            list.remove(list.size() - 1);
+            setIndex(Math.min(getIndex(), list.size() + 1));
         }
     }
 
     public static void cycleSelectedIndex(int direction) {
-        int max = selectedPoints.size() + 1; // +1 pour le point "à poser"
-        selectedIndex += direction;
+        List<BlockPos> list = currentList();
+        int max = list.size() + 1;
+        int idx = getIndex() + (direction > 0 ? 1 : -1);
 
-        if (selectedIndex < 1) {
-            selectedIndex = max;
-        } else if (selectedIndex > max) {
-            selectedIndex = 1;
-        }
+        if (idx < 1) idx = max;
+        else if (idx > max) idx = 1;
 
-        // Affichage temporaire (à remplacer dans l'event overlay)
+        setIndex(idx);
+
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) {
             mc.player.displayClientMessage(
-                    Component.literal("Point sélectionné : #" + selectedIndex), true
+                    Component.literal("Point sélectionné ("
+                            + ArchitectModeManager.getMode().displayName() + ") : #" + idx),
+                    true
             );
         }
     }
 
     public static int getSelectedIndex() {
-        return selectedIndex;
-    }
-
-    public static void addOrReplacePoint(BlockPos pos) {
-        if (selectedIndex > 0 && selectedIndex <= selectedPoints.size()) {
-            // Remplacer le point existant
-            selectedPoints.set(selectedIndex - 1, pos);
-        } else if (selectedPoints.size() < 16) {
-            // Ajouter un nouveau point
-            selectedPoints.add(pos);
-            selectedIndex = selectedPoints.size(); // Se placer sur le nouveau
-        }
-
-        // Affichage chiffre
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level != null && mc.player != null) {
-            int index = selectedIndex > 0 ? selectedIndex - 1 : selectedPoints.size() - 1;
-            DigitParticleRenderer.renderDigit(mc.level, pos.above(), index);
-        }
-    }
-
-    public static void removeLastPoint() {
-        if (!selectedPoints.isEmpty()) {
-            selectedPoints.remove(selectedPoints.size() - 1);
-        }
-    }
-
-    public static List<BlockPos> getSelectedPoints() {
-        return selectedPoints;
+        return getIndex();
     }
 
     public static void setSelectedIndex(int index) {
-        selectedIndex = Math.max(1, Math.min(index, selectedPoints.size() + 1));
+        setIndex(index);
     }
 
-    public static void resetSelection() {
-        selectedPoints.clear();
-        selectedIndex = 1;
+    public static List<BlockPos> getSelectedPoints() {
+        return currentList();
     }
 
+    /* ========== Rendu particules en boucle : uniquement pour le mode courant ========== */
+
+    public static void tick() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null) return;
+
+        List<BlockPos> list = currentList();
+        if (list.isEmpty()) return;
+
+        frameCounter++;
+        if (frameCounter % 10 != 0) return; // toutes ~10 ticks
+
+        for (int i = 0; i < list.size(); i++) {
+            BlockPos p = list.get(i);
+            DigitParticleRenderer.renderDigit(mc.level, p.above(), i);
+        }
+    }
 }

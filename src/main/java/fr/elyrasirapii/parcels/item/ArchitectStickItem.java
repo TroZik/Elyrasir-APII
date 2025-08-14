@@ -27,7 +27,7 @@ public class ArchitectStickItem extends Item {
             if (level.isClientSide) {
                 // Appel indirect à la GUI via une classe client-only
                 DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
-                    fr.elyrasirapii.client.items.ArchitectStickClientHandler.openNamingScreen();
+                    fr.elyrasirapii.client.items.ArchitectStickClientHandler.tryOpenNamingScreen();
 
                 });
             }
@@ -48,7 +48,7 @@ public class ArchitectStickItem extends Item {
         if (level.isClientSide) {
             if (player.isShiftKeyDown()) {
                 DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
-                    fr.elyrasirapii.client.items.ArchitectStickClientHandler.openNamingScreen();
+                    fr.elyrasirapii.client.items.ArchitectStickClientHandler.tryOpenNamingScreen();
                 });
             } else {
                 ClientSelectionManager.addOrReplacePoint(pos);

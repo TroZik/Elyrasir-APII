@@ -2,6 +2,7 @@ package fr.elyrasirapii.client.utils;
 
 import fr.elyrasirapii.client.network.ClientSelectionManager;
 import fr.elyrasirapii.items.ModItems;
+import fr.elyrasirapii.parcels.selection.ArchitectModeManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -19,31 +20,50 @@ public class ClientInputHandler {
     @SubscribeEvent
     public static void onMouseScroll(InputEvent.MouseScrollingEvent event) {
         Minecraft mc = Minecraft.getInstance();
-
         if (mc.player == null || mc.level == null) return;
 
-        // Vérifie que le joueur tient bien l'ArchitectStick
+        // Tenir l’Architect Stick ?
         ItemStack heldItem = mc.player.getMainHandItem();
         if (!heldItem.is(ModItems.ARCHITECT_STICK.get())) return;
 
-        // Vérifie si CTRL est pressé
-        long window = Minecraft.getInstance().getWindow().getWindow();
-        boolean isCtrlDown = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
-                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
+        long window = mc.getWindow().getWindow();
 
-        if (!isCtrlDown) return;
+        boolean isCtrlDown =
+                GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS ||
+                        GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
 
-        // Consomme l'événement pour éviter le changement de hotbar
-        event.setCanceled(true);
+        boolean isShiftDown =
+                GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS ||
+                        GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
 
         double scrollDelta = event.getScrollDelta();
         if (scrollDelta == 0) return;
 
-        int direction = scrollDelta > 0 ? 1 : -1;
-        ClientSelectionManager.cycleSelectedIndex(direction);
+        // On consomme pour éviter le changement de hotbar
+        event.setCanceled(true);
 
-        // Ramène la sélection sur l’ArchitectStick (au cas où)
-        mc.player.getInventory().selected = mc.player.getInventory().findSlotMatchingItem(heldItem);
+        // 1) SHIFT + molette : changer de MODE
+        if (isShiftDown) {
+            int dir = scrollDelta > 0 ? 1 : -1;
+            if (dir > 0) {
+                ArchitectModeManager.nextMode();
+            } else {
+                ArchitectModeManager.prevMode();
+            }
+
+            // Rester sur l’item en main
+            mc.player.getInventory().selected = mc.player.getInventory().findSlotMatchingItem(heldItem);
+            return;
+        }
+
+        // 2) CTRL + molette : changer de POINT sélectionné
+        if (isCtrlDown) {
+            int direction = scrollDelta > 0 ? 1 : -1;
+            ClientSelectionManager.cycleSelectedIndex(direction);
+
+            // Rester sur l’item en main
+            mc.player.getInventory().selected = mc.player.getInventory().findSlotMatchingItem(heldItem);
+        }
     }
 
     @SubscribeEvent
