@@ -1,6 +1,7 @@
 package fr.elyrasirapii.client.utils;
 
 import fr.elyrasirapii.client.network.ClientSelectionManager;
+import fr.elyrasirapii.road.client.RoadSelectionManager;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -13,7 +14,7 @@ public class ClientTickHandler {
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.ClientTickEvent.Phase.END) {
             ClientSelectionManager.tick();         // pour ArchitectStick
-           // RoadSelectionManager.tick();           // pour RoadStick
+           RoadSelectionManager.tick();           // pour RoadStick
         }
     }
 }

@@ -2,6 +2,7 @@ package fr.elyrasirapii.items;
 
 import fr.elyrasirapii.bank.items.*;
 import fr.elyrasirapii.parcels.item.ArchitectStickItem;
+import fr.elyrasirapii.road.item.RoadStickItem;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
@@ -16,8 +17,8 @@ public class ModItems { public static final DeferredRegister<Item> ITEMS =
             ITEMS.register("architect_stick", () -> new ArchitectStickItem(new Item.Properties()));
 
     //ajout du RoadStick
-   /* public static final RegistryObject<Item> ROAD_STICK =
-            ITEMS.register("road_stick", () -> new RoadStickItem(new Item.Properties()));*/
+    public static final RegistryObject<Item> ROAD_STICK =
+            ITEMS.register("road_stick", () -> new RoadStickItem(new Item.Properties()));
 
    //ajout des coupures de la monnaie
 

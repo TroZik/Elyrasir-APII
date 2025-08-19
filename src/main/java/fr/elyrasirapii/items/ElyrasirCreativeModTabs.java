@@ -18,6 +18,7 @@ public class ElyrasirCreativeModTabs {
                     .title(Component.translatable("creativetab.elyrasirapii"))
                     .displayItems((pParameters, pOutput) ->{
                         pOutput.accept(ModItems.ARCHITECT_STICK.get());
+                        pOutput.accept(ModItems.ROAD_STICK.get());
 
                         pOutput.accept(ModItems.UNPOMMECOINITEM.get());
                         pOutput.accept(ModItems.CINQPOMMECOINITEM.get());
