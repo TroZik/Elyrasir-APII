@@ -2,15 +2,11 @@ package fr.elyrasirapii.road.client.gui;
 
 import fr.elyrasirapii.road.utils.RoadType;
 import fr.elyrasirapii.road.client.RoadSelectionManager;
+import fr.elyrasirapii.road.network.PacketFinalizeRoadSelection;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import fr.elyrasirapii.server.network.PacketHandler; // <-- ton handler réseau (SimpleChannel)
 
-/**
- * Étape réseau à venir :
- *  - Ici on enverra PacketFinalizeRoadSelection(name, type, points)
- *
- * Pour l’instant : message + (optionnel) reset de la sélection du type courant.
- */
 public final class NameRoadSubmitter {
     private NameRoadSubmitter() {}
 
@@ -18,14 +14,17 @@ public final class NameRoadSubmitter {
         var mc = Minecraft.getInstance();
         var player = mc.player;
 
-        // TODO réseau : envoyer le packet avec (name, type, points)
+        var points = RoadSelectionManager.getSelectionView();
+        var pkt = new PacketFinalizeRoadSelection(name, type, points);
+
+        // Envoi C2S via ton SimpleChannel existant
+        PacketHandler.CHANNEL.sendToServer(pkt);
+
         if (player != null) {
             player.displayClientMessage(
-                    Component.literal("§aRoute prête à envoyer: \"" + name + "\" (" + type.display() + "), "
-                            + RoadSelectionManager.size() + " points"), true);
+                    Component.literal("§aEnvoi de la route \"" + name + "\" (" + type.display() + ")…"), true);
         }
-
-        // décommenter pour reset immédiat :
+        // Si tu veux: reset local ici ou après ACK serveur
         // RoadSelectionManager.resetSelection(type);
     }
 }

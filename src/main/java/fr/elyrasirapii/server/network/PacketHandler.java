@@ -4,6 +4,9 @@ import fr.elyrasirapii.client.network.PacketDisplayTitle;
 import fr.elyrasirapii.parcels.network.PacketFinalizeRegionSelection;
 import fr.elyrasirapii.parcels.network.PacketParcelsFinalizeSelection;
 import fr.elyrasirapii.parcels.network.PacketParcelsResetSelection;
+import fr.elyrasirapii.road.network.PacketFinalizeRoadSelection;
+import fr.elyrasirapii.road.network.PacketSetRoadHud;
+import fr.elyrasirapii.server.utils.laser.PacketSetLaserLines;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkRegistry;
@@ -26,6 +29,8 @@ public class PacketHandler {
     }
 
     public static void register() {
+
+
         CHANNEL.registerMessage(
                 nextId(),
                 PacketParcelsFinalizeSelection.class,
@@ -33,6 +38,8 @@ public class PacketHandler {
                 PacketParcelsFinalizeSelection::decode,
                 PacketParcelsFinalizeSelection::handle
         );
+
+
         CHANNEL.registerMessage(
                 nextId(),
                 PacketParcelsResetSelection.class,
@@ -41,6 +48,7 @@ public class PacketHandler {
                 PacketParcelsResetSelection::handle
         );
 
+        //packet pour le nom des parcelles/territoire
         CHANNEL.registerMessage(
                 nextId(),
                 PacketDisplayTitle.class,
@@ -58,14 +66,31 @@ public class PacketHandler {
         );
 
 
-       /* CHANNEL.registerMessage(
+        CHANNEL.registerMessage(
                 nextId(),
                 PacketFinalizeRoadSelection.class,
                 PacketFinalizeRoadSelection::encode,
                 PacketFinalizeRoadSelection::decode,
                 PacketFinalizeRoadSelection::handle
-        );*/
-// Tu pourras facilement en rajouter d'autres ici
+        );
+
+
+        CHANNEL.registerMessage(
+                nextId(),
+                PacketSetRoadHud.class,
+                PacketSetRoadHud::encode,
+                PacketSetRoadHud::decode,
+                PacketSetRoadHud::handle
+        );
+
+        CHANNEL.registerMessage(
+                nextId(),
+                PacketSetLaserLines.class,
+                PacketSetLaserLines::encode,
+                PacketSetLaserLines::decode,
+                PacketSetLaserLines::handle
+        );
+
     }
 
     public static void sendToServer(Object packet) {
